@@ -15,7 +15,7 @@ However, the current food collection process relies entirely on a single staff m
 * **Manual Search Overhead:** Staff must visually scan every prepared food tray one-by-one to locate a matching order number for each incoming slip.
 * **Information Asymmetry:** Students have zero real-time visibility into whether their meal is ready, forcing them to crowd the counter and verbally disrupt staff for updates.
 * **Batch-Arrival Chaos:** When fresh trays arrive from the kitchen, an unmanaged crowd rush ensues, overwhelming the single counter operator.
-* **Single Point of Failure:** Assigning one staff member to handle verification, sorting, customer management, and handoff leads to extreme transaction latency and high fatigue.
+<!--* **Single Point of Failure:** Assigning one staff member to handle verification, sorting, customer management, and handoff leads to extreme transaction latency and high fatigue.-->
 
 ---
 
@@ -33,14 +33,12 @@ A lightweight, real-time **Token Display & Verification System** designed to dec
 
 ### Core Features
 
-* **Real-Time Order Status Board:** A digital display mounted above the counter (and accessible via mobile web) showing orders categorized under **Preparing** vs. **Ready for Pickup**.
+* **Real-Time Order Status Board:** A digital display mounted above the counter (and accessible via mobile web) showing orders with names whose orders **Ready for Pickup**.
 * **Quick Verification (QR / Barcode):** Scanning a digital or printed barcode on the order slip validates pickup in under 2 seconds.
 * **Batch Notification Alerts:** Audio/visual prompts notify students immediately when a batch of fresh food is logged into the ready queue.
 * **Role-Based Interfaces:**
-  * **Kitchen Dashboard:** Staff tap order numbers to push them from "Preparing" to "Ready".
   * **Counter Dispatcher:** Quick-scan verification screen for rapid order handoffs.
   * **Student Web Tracker:** Lightweight mobile interface allowing students to monitor order status from their tables.
 
----
+## Workflow architecture
 
-## Workflow Architecture
