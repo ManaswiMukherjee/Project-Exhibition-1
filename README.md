@@ -40,5 +40,4 @@ A lightweight, real-time **Token Display & Verification System** designed to dec
   * **Counter Dispatcher:** Quick-scan verification screen for rapid order handoffs.
   * **Student Web Tracker:** Lightweight mobile interface allowing students to monitor order status from their tables.
 
-## Workflow architecture
 

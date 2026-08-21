@@ -1,77 +1,102 @@
 #include <WiFi.h>
 #include <WebServer.h>
-
-// Enter your Wi-Fi credentials
-const char* ssid = "Redmi Valid";
-const char* password = "12345678";
+#include "secrets.h"
+#include "index.h"
 
 WebServer server(80);
 
-// Sample Data Structure
+// Simplified struct containing only rendered fields
 struct Order {
-  int id;
   const char* name;
-  const char* time;
   const char* item;
-  const char* status;
 };
 
-// Sample Array of Rows
+// 62 Sample Orders
 Order orders[] = {
-  {101, "Alice", "12:30 PM", "Burger & Fries", "Done"},
-  {102, "Bob", "12:32 PM", "Iced Coffee", "Preparing"},
-  {103, "Charlie", "12:35 PM", "Pepperoni Pizza", "Preparing"},
-  {104, "Diana", "12:38 PM", "Caesar Salad", "Done"},
-  {105, "Evan", "12:40 PM", "Club Sandwich", "Preparing"}
+  {"Alice", "Burger & Fries"},
+  {"Bob", "Iced Coffee"},
+  {"Charlie", "Pepperoni Pizza"},
+  {"Diana", "Caesar Salad"},
+  {"Evan", "Club Sandwich"},
+  {"Fiona", "Espresso"},
+  {"George", "Truffle Fries"},
+  {"Hannah", "Matcha Latte"},
+  {"Ian", "Margherita Pizza"},
+  {"Julia", "Chicken Wrap"},
+  {"Kevin", "Bacon Cheeseburger"},
+  {"Laura", "Fresh Lemonade"},
+  {"Michael", "Fish & Chips"},
+  {"Nina", "Avocado Toast"},
+  {"Oliver", "Double Espresso"},
+  {"Paula", "Greek Salad"},
+  {"Quinn", "Steak Sandwich"},
+  {"Rachel", "Iced Peach Tea"},
+  {"Sam", "BBQ Chicken Wings"},
+  {"Tina", "Caprese Salad"},
+  {"Ulysses", "Nitro Cold Brew"},
+  {"Victoria", "Veggie Burger"},
+  {"Will", "Philly Cheesesteak"},
+  {"Xena", "Berry Fruit Smoothie"},
+  {"Yusuf", "Falafel Wrap"},
+  {"Zoe", "Mushroom Risotto"},
+  {"Aaron", "Chicken Tenders"},
+  {"Bella", "Vanilla Cappuccino"},
+  {"Chris", "Garlic Bread"},
+  {"Daisy", "Mango Smoothie"},
+  {"Ethan", "Pulled Pork Sandwich"},
+  {"Faith", "Chicken Caesar Wrap"},
+  {"Gavin", "Hot Chocolate"},
+  {"Holly", "Crispy Onion Rings"},
+  {"Isaac", "Baked Mac & Cheese"},
+  {"Jack", "Iced Americano"},
+  {"Kara", "Cobb Salad"},
+  {"Leo", "Breakfast Burrito"},
+  {"Mia", "Chai Tea Latte"},
+  {"Noah", "Loaded Nachos"},
+  {"Olivia", "Turkey Panini"},
+  {"Peter", "Flat White"},
+  {"Quentin", "Chicken Quesadilla"},
+  {"Rose", "Sparkling Water"},
+  {"Sean", "Classic Hot Dog"},
+  {"Tara", "Jasmine Green Tea"},
+  {"Umar", "Clam Chowder"},
+  {"Valerie", "Mozzarella Sticks"},
+  {"Wyatt", "Chocolate Milkshake"},
+  {"Xander", "Grilled Cheese"},
+  {"Yara", "Caramel Macchiato"},
+  {"Zack", "Buffalo Wings"},
+  {"Amber", "Club Wrap"},
+  {"Brian", "Caffè Latte"},
+  {"Chloe", "Taco Salad"},
+  {"David", "Beef Sliders"},
+  {"Emma", "Sweet Iced Tea"},
+  {"Frank", "Fish Tacos"},
+  {"Grace", "Acai Smoothie Bowl"},
+  {"Henry", "BLT Sandwich"},
+  {"Isla", "Caffè Mocha"},
+  {"Jake", "Chicken Parm Sub"}
 };
 
 void handleRoot() {
-  String html = "<!DOCTYPE html><html><head><title>Display Board</title>";
-  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  
-  // Custom Dark Mode CSS for an Airport/Restaurant Board look
-  html += "<style>";
-  html += "body { background-color: #0b0e14; color: #e6edf3; font-family: monospace, sans-serif; padding: 30px; text-align: center; }";
-  html += "h1 { color: #f2a900; font-size: 2.5rem; letter-spacing: 3px; margin-bottom: 30px; text-transform: uppercase; }";
-  html += "table { width: 100%; border-collapse: collapse; font-size: 1.5rem; }";
-  html += "th, td { padding: 18px; border-bottom: 1px solid #30363d; text-align: left; }";
-  html += "th { background-color: #161b22; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; }";
-  html += "tr:nth-child(even) { background-color: #161b22; }";
-  html += ".done { color: #3fb950; font-weight: bold; }";
-  html += ".preparing { color: #d29922; font-weight: bold; }";
-  html += "</style>";
-  
-  // Auto-refresh the page every 5 seconds to load updated data
-  html += "<meta http-equiv='refresh' content='5'>"; 
-  html += "</head><body>";
-  
-  html += "<h1>LIVE STATUS BOARD</h1>";
-  html += "<table>";
-  html += "<tr><th>ID</th><th>Name</th><th>Time</th><th>Order</th><th>Status</th></tr>";
-
-  // Build the table rows dynamically
+  String rows = "";
   int count = sizeof(orders) / sizeof(orders[0]);
+
   for (int i = 0; i < count; i++) {
-    html += "<tr>";
-    html += "<td>#" + String(orders[i].id) + "</td>";
-    html += "<td>" + String(orders[i].name) + "</td>";
-    html += "<td>" + String(orders[i].time) + "</td>";
-    html += "<td>" + String(orders[i].item) + "</td>";
-    
-    // Style status color conditionally
-    String statusClass = (String(orders[i].status) == "Done") ? "done" : "preparing";
-    html += "<td class='" + statusClass + "'>" + String(orders[i].status) + "</td>";
-    html += "</tr>";
+    rows += "<tr>";
+    rows += "<td>" + String(orders[i].name) + "</td>";
+    rows += "<td>" + String(orders[i].item) + "</td>";
+    rows += "</tr>";
   }
 
-  html += "</table></body></html>";
-  
+  String html = INDEX_HTML;
+  html.replace("%TABLE_ROWS%", rows);
+
   server.send(200, "text/html", html);
 }
 
 void setup() {
   Serial.begin(115200);
-  WiFi.begin(ssid, password);
+  WiFi.begin(SECRET_SSID, SECRET_PASS);
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
