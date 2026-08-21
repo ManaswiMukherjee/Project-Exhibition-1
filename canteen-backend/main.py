@@ -74,7 +74,7 @@ def scan(payload: ScanPayload):
             detail=f"Order {payload.id} is already COLLECTED.",
         )
 
-
+#esp32 poll logic
 @app.get("/ready-queue", response_model=List[OrderPublic])
 def ready_queue():
     """Polled by the ESP32. Every order currently READY, oldest first
@@ -92,7 +92,7 @@ def ready_queue():
             for o in orders
         ]
 
-
+#student web tracker logic
 @app.get("/status/{order_id}", response_model=StatusPublic)
 def get_status(order_id: str):
     """Polled by the student web tracker every 3-5s.

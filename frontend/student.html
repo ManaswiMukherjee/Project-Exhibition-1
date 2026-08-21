@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Panel - Order Status</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+  <div class="bg-white p-6 rounded-xl shadow-lg max-w-md w-full">
+    <h2 class="text-2xl font-bold text-center text-indigo-600 mb-6">Canteen Food Order Tracker</h2>
+
+    <!-- Entry form: shown until tracking starts -->
+    <div id="inputSection" class="space-y-4">
+      <div>
+        <label for="orderId" class="block text-sm font-medium text-gray-700 mb-1">Order ID:</label>
+        <input type="text" id="orderId" placeholder="e.g., 260821143045"
+               class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <p class="text-xs text-gray-400 mt-1">This is the ID printed on your order slip.</p>
+      </div>
+      <button onclick="startTracking()"
+              class="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition">
+        Track My Order
+      </button>
+    </div>
+
+    <!-- Live status: shown once tracking starts, auto-refreshes every ~4s -->
+    <div id="statusResult" class="hidden">
+      <p class="text-sm text-gray-500">Order ID: <span id="displayOrderId" class="font-bold text-gray-800"></span></p>
+
+      <div id="statusBadge" class="mt-4 p-3 rounded-md text-center font-semibold bg-gray-100 text-gray-600 border border-gray-300">
+        Checking...
+      </div>
+
+      <p id="lastChecked" class="text-xs text-gray-400 mt-2 text-center"></p>
+
+      <button onclick="stopTracking()"
+              class="w-full mt-4 bg-gray-200 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-300 transition">
+        Track a Different Order
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ---- Backend connection ------------------------------------------
+    // Points at the FastAPI backend. When testing on your own machine,
+    // localhost:8000 is fine. When students use this on their own phones
+    // over the canteen WiFi, this MUST be the host machine's LAN IP
+    // instead, e.g. "http://192.168.1.42:8000" (find it with `ip addr` /
+    // `ipconfig` on the machine running the backend).
+    const BASE_URL = "http://localhost:8000";
+
+    // Backend design intentionally uses polling (not WebSockets) for v1.
+    // 3-5s was the agreed range; 4000ms splits the difference.
+    const POLL_INTERVAL_MS = 4000;
+
+    let pollTimer = null;
+    let currentOrderId = null;
+
+    function startTracking() {
+      const orderId = document.getElementById('orderId').value.trim();
+      if (!orderId) {
+        alert('Please enter an Order ID');
+        return;
+      }
+      currentOrderId = orderId;
+
+      document.getElementById('inputSection').classList.add('hidden');
+      document.getElementById('statusResult').classList.remove('hidden');
+      document.getElementById('displayOrderId').innerText = orderId;
+
+      checkStatusOnce(); // don't wait 4s for the first check
+      pollTimer = setInterval(checkStatusOnce, POLL_INTERVAL_MS);
+    }
+
+    function stopTracking() {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = null;
+      currentOrderId = null;
+
+      document.getElementById('inputSection').classList.remove('hidden');
+      document.getElementById('statusResult').classList.add('hidden');
+      document.getElementById('orderId').value = '';
+    }
+
+    async function checkStatusOnce() {
+      if (!currentOrderId) return;
+      const badge = document.getElementById('statusBadge');
+
+      try {
+        const response = await fetch(`${BASE_URL}/status/${encodeURIComponent(currentOrderId)}`);
+
+        if (response.status === 200) {
+          const data = await response.json();
+          if (data.status === 'READY') {
+            setBadge(badge, 'green', 'Food is Ready! Please collect from the counter.');
+          } else if (data.status === 'COLLECTED') {
+            setBadge(badge, 'gray', 'This order has already been collected.');
+            // Terminal state -- no point continuing to poll.
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+          }
+        } else if (response.status === 404) {
+          // By backend design, 404 is deliberately ambiguous: it could mean
+          // the order genuinely isn't ready yet, OR the ID was mistyped.
+          // We phrase this honestly rather than implying a definite state.
+          setBadge(badge, 'yellow', "Not ready yet — or double-check your Order ID.");
+        } else {
+          setBadge(badge, 'red', `Unexpected server response (${response.status}).`);
+        }
+      } catch (error) {
+        console.error("Error fetching order status:", error);
+        setBadge(badge, 'red', "Can't reach the server. Check your connection.");
+      }
+
+      document.getElementById('lastChecked').innerText =
+        `Last checked: ${new Date().toLocaleTimeString()}`;
+    }
+
+    function setBadge(el, color, text) {
+      const palette = {
+        green:  'bg-green-100 text-green-800 border-green-300',
+        yellow: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+        gray:   'bg-gray-100 text-gray-600 border-gray-300',
+        red:    'bg-red-100 text-red-800 border-red-300',
+      };
+      el.className = `mt-4 p-3 rounded-md text-center font-semibold border ${palette[color] || palette.gray}`;
+      el.innerText = text;
+    }
+  </script>
+</body>
+</html>
