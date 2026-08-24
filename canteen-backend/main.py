@@ -6,11 +6,11 @@ from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
+from fastapi.staticfiles import StaticFiles
 
 from database import engine, init_db
 from models import Order, OrderPublic, ScanPayload, StatusPublic
 from scheduler import clear_orders_at_midnight
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -34,6 +34,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.mount("/app", StaticFiles(directory="../frontend", html=True), name="frontend")
 
 
 @app.post("/scan")
