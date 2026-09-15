@@ -144,6 +144,7 @@ void handleData() {
   server.send(200, "application/json", output);
 }
 
+
 void setup() {
   Serial.begin(115200);
   while (!Serial) {
