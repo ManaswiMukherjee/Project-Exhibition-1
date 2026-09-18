@@ -5,9 +5,10 @@ TURSO_DB_URL = os.getenv("TURSO_DATABASE_URL", "")
 TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN", "")
 
 if TURSO_DB_URL and TURSO_AUTH_TOKEN:
-    # Extract raw hostname without protocols or query parameters
+    # Strip existing protocols and parameters to isolate the raw hostname
     clean_host = (
-        TURSO_DB_URL.replace("sqlite+libsql://", "")
+        TURSO_DB_URL
+        .replace("sqlite+libsql://", "")
         .replace("libsql://", "")
         .replace("https://", "")
         .replace("http://", "")
@@ -15,8 +16,8 @@ if TURSO_DB_URL and TURSO_AUTH_TOKEN:
         .strip("/")
     )
 
-    # Expressly pass https:// inside the sqlite+libsql dialect URL
-    database_url = f"sqlite+libsql://https://{clean_host}"
+    # Use ?secure=true to enforce HTTPS in sqlalchemy-libsql safely
+    database_url = f"sqlite+libsql://{clean_host}?secure=true"
 
     engine = create_engine(
         database_url,
