@@ -8,7 +8,7 @@
 // below and re-flash. See canteen-backend/README.md re: setting a static
 // IP / DHCP reservation on the router so this doesn't drift and need
 // re-flashing every session.
-const char* BACKEND_HOST = "10.34.59.204";  // <-- CHANGE THIS before flashing
+const char* BACKEND_HOST = "192.168.18.56";  // <-- CHANGE THIS before flashing
 const int BACKEND_PORT = 8000;
 
 // ---- Timing --------------------------------------------------------------

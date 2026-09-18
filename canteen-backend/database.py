@@ -1,22 +1,21 @@
-from sqlmodel import SQLModel, Session, create_engine
+import os
+from sqlmodel import SQLModel, create_engine, Session
 
-# Single local SQLite file. This whole system is meant to run on a machine
-# physically at the canteen (Raspberry Pi / mini-PC / old laptop) on the
-# local network -- no cloud DB, no internet dependency for core operation.
-DATABASE_URL = "sqlite:///./orders.db"
+# Pull Turso credentials from environment variables
+TURSO_DB_URL = os.getenv("TURSO_DATABASE_URL")
+TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN")
 
-# check_same_thread=False is required because FastAPI can handle requests
-# on different threads, but we're still only ever hitting a single SQLite
-# file on one machine, which is exactly what SQLite is fine with.
-engine = create_engine(DATABASE_URL, echo=False, connect_args={"check_same_thread": False})
+if TURSO_DB_URL and TURSO_AUTH_TOKEN:
+    # Render / Turso Cloud URL format
+    # Convert 'libsql://' or 'https://' to 'sqlite+libsql://' for SQLAlchemy
+    clean_url = TURSO_DB_URL.replace("libsql://", "").replace("https://", "")
+    database_url = f"sqlite+libsql://{clean_url}?auth_token={TURSO_AUTH_TOKEN}"
+else:
+    # Fallback to local SQLite file for offline local dev
+    database_url = "sqlite:///./orders.db"
 
-
-def init_db() -> None:
-    """Create tables if they don't already exist. Safe to call every startup."""
-    SQLModel.metadata.create_all(engine)
-
+engine = create_engine(database_url, echo=True)
 
 def get_session():
-    """FastAPI dependency that yields a DB session per-request."""
     with Session(engine) as session:
         yield session
