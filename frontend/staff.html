@@ -65,13 +65,30 @@
     let lastScanTime = 0;
     const RESCAN_COOLDOWN_MS = 3000; // ignore repeat reads of the *same* QR within this window
 
-    function saveStaffKey() {
-      const key = document.getElementById('staffKeyInput').value.trim();
-      if (!key) return;
+    async function saveStaffKey() {
+  const key = document.getElementById('staffKeyInput').value.trim();
+  if (!key) return;
+
+  try {
+    const response = await fetch(`${BASE_URL}/verify-staff-key`, {
+      method: 'GET',
+      headers: {
+        'X-Staff-Key': key,
+      },
+    });
+
+    if (response.ok) {
       sessionStorage.setItem('staffKey', key);
       document.getElementById('authError').classList.add('hidden');
       checkAuthGate();
+    } else {
+      document.getElementById('authError').classList.remove('hidden');
     }
+  } catch (error) {
+    console.error("Error verifying staff key:", error);
+    alert("Unable to reach backend server. Check network connection.");
+  }
+}
 
     function checkAuthGate() {
       const hasKey = !!sessionStorage.getItem('staffKey');

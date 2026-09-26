@@ -44,6 +44,10 @@ def verify_staff_key(x_staff_key: str = Header(default="")):
     if not STAFF_API_KEY or x_staff_key != STAFF_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing staff key")
 
+@app.get("/verify-staff-key", dependencies=[Depends(verify_staff_key)])
+def verify_key():
+    """Endpoint used by staff.html to test if an access key is valid."""
+    return {"status": "ok"}
 
 @app.post("/scan", dependencies=[Depends(verify_staff_key)])
 def scan(payload: ScanPayload):
