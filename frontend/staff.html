@@ -13,9 +13,20 @@
        ignores touches, briefly flashes a color then fades out. Exists
        because on a small phone screen, the scan-log entry alone is easy
        to miss at a busy counter; this is impossible to miss. -->
-  <div id="flashOverlay" style="position:fixed; inset:0; pointer-events:none; opacity:0; transition:opacity 0.15s ease; z-index:9999;"></div>
+    <div id="flashOverlay" style="position:fixed; inset:0; pointer-events:none; opacity:0; transition:opacity 0.15s ease; z-index:9999;"></div>
 
-  <div class="bg-white p-6 rounded-xl shadow-lg max-w-md w-full">
+  <div id="authGate" class="bg-white p-6 rounded-xl shadow-lg max-w-md w-full">
+    <h2 class="text-2xl font-bold text-center mb-6">Staff Access</h2>
+    <input type="password" id="staffKeyInput" placeholder="Access code"
+           class="w-full px-4 py-2 border rounded-lg mb-4">
+    <button onclick="saveStaffKey()"
+            class="w-full bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700 transition">
+      Continue
+    </button>
+    <p id="authError" class="text-red-700 text-sm text-center mt-2 hidden">Wrong code.</p>
+  </div>
+
+  <div id="scannerUi" class="hidden bg-white p-6 rounded-xl shadow-lg max-w-md w-full">
     <h2 class="text-2xl font-bold text-center text-emerald-600 mb-1">Staff Panel - QR Scanner</h2>
     <p class="text-xs text-gray-400 text-center mb-4">Scan a slip's QR twice: once when food's ready, once at handoff.</p>
 
@@ -49,10 +60,26 @@
     const BASE_URL = "";
 
     let html5QrCode = null;
-    let isProcessing = false;        // true while a scan is in-flight to the backend
+        let isProcessing = false;        // true while a scan is in-flight to the backend
     let lastScanId = null;
     let lastScanTime = 0;
     const RESCAN_COOLDOWN_MS = 3000; // ignore repeat reads of the *same* QR within this window
+
+    function saveStaffKey() {
+      const key = document.getElementById('staffKeyInput').value.trim();
+      if (!key) return;
+      sessionStorage.setItem('staffKey', key);
+      document.getElementById('authError').classList.add('hidden');
+      checkAuthGate();
+    }
+
+    function checkAuthGate() {
+      const hasKey = !!sessionStorage.getItem('staffKey');
+      document.getElementById('authGate').classList.toggle('hidden', hasKey);
+      document.getElementById('scannerUi').classList.toggle('hidden', !hasKey);
+    }
+
+    checkAuthGate();
 
     // Called by html5-qrcode on every successful frame decode -- this can
     // fire many times a second while a QR stays in view, so debouncing is
@@ -86,12 +113,24 @@
       lastScanId = payload.id;
       lastScanTime = Date.now();
 
-      try {
+            try {
         const response = await fetch(`${BASE_URL}/scan`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Staff-Key': sessionStorage.getItem('staffKey') || '',
+          },
           body: JSON.stringify(payload),
         });
+
+        if (response.status === 401) {
+          sessionStorage.removeItem('staffKey');
+          checkAuthGate();
+          document.getElementById('authError').classList.remove('hidden');
+          logResult('error', 'Access code rejected — re-enter it.');
+          isProcessing = false;
+          return;
+        }
 
         const data = await response.json().catch(() => ({}));
 
