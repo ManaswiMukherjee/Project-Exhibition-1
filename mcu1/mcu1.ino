@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include "secrets.h"
 #include "config.h"
@@ -8,31 +9,18 @@
 
 WebServer server(80);
 
-// Fixed-size char buffers rather than Arduino String -- this board runs
-// continuously (kiosk display), and repeatedly reassigning String objects
-// every 15s risks heap fragmentation over long uptimes. Fixed buffers
-// sidestep that entirely at the cost of a hard length cap (truncated with
-// strncpy if a name/item list is ever longer than the buffer).
 struct DisplayOrder {
   char cname[32];
-  char items[100];  // joined display string, e.g. "Masala Dosa x2, Filter Coffee x1"
+  char items[100];
 };
 
 DisplayOrder currentOrders[MAX_ORDERS];
 int orderCount = 0;
 
 unsigned long lastFetchTime = 0;
-unsigned long lastSuccessfulFetchMillis = 0;  // 0 = never succeeded yet
+unsigned long lastSuccessfulFetchMillis = 0;
 unsigned long lastReconnectAttempt = 0;
 
-// ---------------------------------------------------------------------
-// Pulls GET /ready-queue from the backend, parses it, and refills
-// currentOrders[]. On ANY failure (WiFi down, backend unreachable,
-// timeout, bad JSON) this just returns without touching currentOrders[],
-// so the board keeps its last successfully fetched list rather than
-// going blank. lastSuccessfulFetchMillis only updates on real success,
-// which is what the staleness indicator on the display page is based on.
-// ---------------------------------------------------------------------
 void fetchReadyQueue() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[fetch] WiFi not connected, skipping this cycle.");
@@ -40,9 +28,17 @@ void fetchReadyQueue() {
   }
 
   HTTPClient http;
-  String url = String("http://") + BACKEND_HOST + ":" + String(BACKEND_PORT) + "/ready-queue";
 
+#if USE_CLOUD_BACKEND
+  WiFiClientSecure client;
+  client.setInsecure();
+  String url = String("https://") + BACKEND_CLOUD_HOST + "/ready-queue";
+  http.begin(client, url);
+#else
+  String url = String("http://") + BACKEND_LOCAL_HOST + ":" + String(BACKEND_LOCAL_PORT) + "/ready-queue";
   http.begin(url);
+#endif
+
   http.setTimeout(HTTP_TIMEOUT_MS);
   int httpCode = http.GET();
 
@@ -53,15 +49,18 @@ void fetchReadyQueue() {
     return;
   }
 
-  // Deserialize straight from the response stream rather than buffering
-  // the whole body into a String first -- lighter on memory.
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, http.getStream());
+  // Buffer response body as a String to prevent TLS stream timeouts
+  String payload = http.getString();
   http.end();
+
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, payload);
 
   if (err) {
     Serial.print("[fetch] JSON parse failed: ");
     Serial.println(err.c_str());
+    Serial.print("[fetch] Raw response received: ");
+    Serial.println(payload); // Prints exact server response for easy debugging
     return;
   }
 
@@ -82,7 +81,6 @@ void fetchReadyQueue() {
     strncpy(currentOrders[count].cname, cname, sizeof(currentOrders[count].cname) - 1);
     currentOrders[count].cname[sizeof(currentOrders[count].cname) - 1] = '\0';
 
-    // Join order_contents into one line, e.g. "Masala Dosa x2, Filter Coffee x1"
     String joined = "";
     JsonArray contents = order["order_contents"].as<JsonArray>();
     for (JsonObject item : contents) {
@@ -105,23 +103,10 @@ void fetchReadyQueue() {
   Serial.println(orderCount);
 }
 
-// ---------------------------------------------------------------------
-// GET / -- serves the display page. The page no longer needs any
-// server-side templating; its own JS fills in rows and the status
-// indicator by polling GET /data below.
-// ---------------------------------------------------------------------
 void handleRoot() {
   server.send(200, "text/html", INDEX_HTML);
 }
 
-// ---------------------------------------------------------------------
-// GET /data -- returns the ESP32's cached order list PLUS freshness info
-// as JSON:
-//   { "orders": [...], "ageSeconds": N, "wifiConnected": true }
-// ageSeconds is -1 if the ESP32 has never successfully fetched from the
-// backend yet (vs. 0+ once it has, even if the queue itself is empty).
-// This is what the display page's JS polls every 5s.
-// ---------------------------------------------------------------------
 void handleData() {
   JsonDocument doc;
 
@@ -144,7 +129,6 @@ void handleData() {
   server.send(200, "application/json", output);
 }
 
-
 void setup() {
   Serial.begin(115200);
   while (!Serial) {
@@ -162,13 +146,17 @@ void setup() {
   Serial.println("\nWiFi Connected!");
   Serial.print("Display board is at: http://");
   Serial.println(WiFi.localIP());
-  Serial.print("Pulling orders from backend at: http://");
-  Serial.print(BACKEND_HOST);
-  Serial.print(":");
-  Serial.println(BACKEND_PORT);
 
-  // Get one batch of real data before the display goes live, so the
-  // first page load isn't stuck on an empty/loading table.
+#if USE_CLOUD_BACKEND
+  Serial.print("Pulling orders from Cloud at: https://");
+  Serial.println(BACKEND_CLOUD_HOST);
+#else
+  Serial.print("Pulling orders from Local at: http://");
+  Serial.print(BACKEND_LOCAL_HOST);
+  Serial.print(":");
+  Serial.println(BACKEND_LOCAL_PORT);
+#endif
+
   fetchReadyQueue();
   lastFetchTime = millis();
 
@@ -182,10 +170,6 @@ void loop() {
 
   unsigned long now = millis();
 
-  // If WiFi has dropped, periodically try to reconnect using the stored
-  // credentials rather than waiting for a manual power-cycle. This is a
-  // kiosk device meant to run unattended, so recovering from a router
-  // blip or brief signal drop on its own matters.
   if (WiFi.status() != WL_CONNECTED) {
     if (now - lastReconnectAttempt >= RECONNECT_INTERVAL_MS) {
       Serial.println("[wifi] Connection lost, attempting reconnect...");

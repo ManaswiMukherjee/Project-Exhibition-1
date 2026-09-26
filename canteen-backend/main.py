@@ -1,26 +1,27 @@
 import asyncio
 import json
+import os
 from contextlib import asynccontextmanager
 from typing import List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 from fastapi.staticfiles import StaticFiles
 
 from database import engine, init_db
 from models import Order, OrderPublic, ScanPayload, StatusPublic
-from scheduler import clear_orders_at_midnight
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: make sure the table exists, then kick off the daily-clear
     # background task for the lifetime of the app.
     init_db()
-    clear_task = asyncio.create_task(clear_orders_at_midnight())
+    
     yield
     # Shutdown: stop the background task cleanly.
-    clear_task.cancel()
+    
 
 
 app = FastAPI(title="Rassence Caterers - Token Distribution System", lifespan=lifespan)
@@ -36,8 +37,15 @@ app.add_middleware(
 )
 app.mount("/app", StaticFiles(directory="../frontend", html=True), name="frontend")
 
+STAFF_API_KEY = os.getenv("STAFF_API_KEY", "")
 
-@app.post("/scan")
+
+def verify_staff_key(x_staff_key: str = Header(default="")):
+    if not STAFF_API_KEY or x_staff_key != STAFF_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing staff key")
+
+
+@app.post("/scan", dependencies=[Depends(verify_staff_key)])
 def scan(payload: ScanPayload):
     """
     Single endpoint for BOTH scans of the same physical QR code:
