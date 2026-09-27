@@ -1,11 +1,15 @@
 import asyncio
 import json
 import os
+import secrets
 from contextlib import asynccontextmanager
 from typing import List
 
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sqlmodel import Session, select
 from fastapi.staticfiles import StaticFiles
 
@@ -26,6 +30,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Rassence Caterers - Token Distribution System", lifespan=lifespan)
 
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Wide open CORS: the student tracker (plain HTML/JS served from wherever)
 # and the staff scanner are both on the local canteen network, not behind
 # any auth yet (by design, for now). Tighten this later if auth is added.
@@ -41,16 +49,18 @@ STAFF_API_KEY = os.getenv("STAFF_API_KEY", "")
 
 
 def verify_staff_key(x_staff_key: str = Header(default="")):
-    if not STAFF_API_KEY or x_staff_key != STAFF_API_KEY:
+    if not STAFF_API_KEY or not secrets.compare_digest(x_staff_key, STAFF_API_KEY):
         raise HTTPException(status_code=401, detail="Invalid or missing staff key")
 
 @app.get("/verify-staff-key", dependencies=[Depends(verify_staff_key)])
-def verify_key():
+@limiter.limit("5/minute")
+def verify_key(request: Request):
     """Endpoint used by staff.html to test if an access key is valid."""
     return {"status": "ok"}
 
 @app.post("/scan", dependencies=[Depends(verify_staff_key)])
-def scan(payload: ScanPayload):
+@limiter.limit("30/minute")
+def scan(request: Request, payload: ScanPayload):
     """
     Single endpoint for BOTH scans of the same physical QR code:
 

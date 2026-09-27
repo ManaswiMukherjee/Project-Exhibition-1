@@ -4,17 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rassence Caterers</title>
-  <link rel="stylesheet" href="lib/local.css">
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
   <div class="bg-white p-6 rounded-xl shadow-lg max-w-md w-full text-center">
-    <h2 class="text-2xl font-bold text-indigo-600 mb-6">Rassence Caterers</h2>
-    <a href="student.html" class="block w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold mb-3">
-      Track My Order
-    </a>
-    <a href="staff.html" class="block w-full bg-gray-200 text-gray-700 py-2 rounded-lg text-sm">
-      Staff
-    </a>
+    <h2 class="text-2xl font-bold text-indigo-600 mb-1">Rassence Caterers</h2>
+    <p class="text-xs text-gray-400 mb-6">Select your portal to continue</p>
+
+    <div class="space-y-3">
+      <a href="student.html" 
+         class="block w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-150">
+        Track My Order
+      </a>
+      <a href="staff.html" 
+         class="block w-full bg-gray-200 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-300 transition duration-150 text-sm">
+        Staff Panel
+      </a>
+    </div>
   </div>
+
 </body>
 </html>
