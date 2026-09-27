@@ -48,19 +48,18 @@ app.mount("/app", StaticFiles(directory="../frontend", html=True), name="fronten
 STAFF_API_KEY = os.getenv("STAFF_API_KEY", "")
 
 
-def verify_staff_key(x_staff_key: str = Header(default="")):
+@limiter.limit("15/minute")
+def verify_staff_key(request: Request, x_staff_key: str = Header(default="")):
     if not STAFF_API_KEY or not secrets.compare_digest(x_staff_key, STAFF_API_KEY):
         raise HTTPException(status_code=401, detail="Invalid or missing staff key")
 
 @app.get("/verify-staff-key", dependencies=[Depends(verify_staff_key)])
-@limiter.limit("5/minute")
-def verify_key(request: Request):
+def verify_key():
     """Endpoint used by staff.html to test if an access key is valid."""
     return {"status": "ok"}
 
 @app.post("/scan", dependencies=[Depends(verify_staff_key)])
-@limiter.limit("30/minute")
-def scan(request: Request, payload: ScanPayload):
+def scan(payload: ScanPayload):
     """
     Single endpoint for BOTH scans of the same physical QR code:
 
