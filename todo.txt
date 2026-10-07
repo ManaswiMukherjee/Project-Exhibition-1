@@ -1,4 +1,2 @@
 cloudflare
 order id based limiting
-auth for the scanner page
-security for the scan endpoint
